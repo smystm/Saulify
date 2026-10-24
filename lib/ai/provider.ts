@@ -12,8 +12,17 @@ export type AiResolution =
   | { configured: true; config: AiConfig; note: string }
   | { configured: false; reason: string };
 
-const AI_TIMEOUT_MS = 35_000;
+const AI_TIMEOUT_MS = 45_000;
 const MAX_AI_RESPONSE_CHARS = 150_000;
+const AI_MAX_OUTPUT_TOKENS = 8_192;
+
+function isGeminiEndpoint(baseUrl: string): boolean {
+  try {
+    return new URL(baseUrl).hostname === "generativelanguage.googleapis.com";
+  } catch {
+    return false;
+  }
+}
 
 function normalizeBaseUrl(raw: string, allowLocalHttp: boolean): string {
   const parsed = new URL(raw);
@@ -195,6 +204,7 @@ export async function requestAiCompletion(
   ];
 
   const isOllama = config.provider === "ollama";
+  const isGemini = config.provider === "openai-compatible" && isGeminiEndpoint(config.baseUrl);
   const endpoint = isOllama ? `${config.baseUrl}/api/chat` : `${config.baseUrl}/chat/completions`;
   const body = isOllama
     ? {
@@ -207,8 +217,12 @@ export async function requestAiCompletion(
     : {
         model: config.model,
         temperature: 0.1,
-        max_tokens: 3200,
+        max_tokens: isGemini ? AI_MAX_OUTPUT_TOKENS : 3_200,
         messages,
+        // Gemini 3 models always reason. Keeping the effort low makes the
+        // request usable inside the API route's time budget while still
+        // leaving enough output tokens for the JSON review.
+        ...(isGemini ? { reasoning_effort: "low" } : {}),
       };
 
   let response: Response;

@@ -1,5 +1,13 @@
 import type { Metadata, Viewport } from "next";
+import { Vazirmatn } from "next/font/google";
+import { LanguageProvider } from "@/components/language-provider";
 import "./globals.css";
+
+const vazirmatn = Vazirmatn({
+  subsets: ["arabic", "latin"],
+  variable: "--font-vazirmatn",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Saulify — evidence-first GitHub repository analysis",
@@ -21,8 +29,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="h-full">
-      <body className="min-h-full bg-[#070908] font-sans text-zinc-100 antialiased">{children}</body>
+    <html lang="en" dir="ltr" className={`${vazirmatn.variable} h-full`}>
+      <body className="min-h-full bg-[#070908] font-sans text-zinc-100 antialiased">
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
     </html>
   );
 }

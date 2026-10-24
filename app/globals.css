@@ -28,6 +28,26 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+html[lang="fa"] body {
+  font-family: var(--font-vazirmatn), var(--font-sans);
+  line-height: 1.75;
+}
+
+html[lang="fa"] [class*="tracking-"] {
+  letter-spacing: 0;
+}
+
+.technical-ltr {
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
+}
+
+.ltr-inline {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
 ::selection {
   background: rgb(190 242 100 / 0.25);
   color: #fbfff4;

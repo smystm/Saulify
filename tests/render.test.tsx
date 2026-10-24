@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ReportView } from "../components/report-view";
+import { LanguageProvider } from "../components/language-provider";
 import type { Report } from "../lib/reports/schema";
 
 function reportWith(title = "Potential hardcoded credential"): Report {
@@ -67,7 +68,11 @@ function reportWith(title = "Potential hardcoded credential"): Report {
 }
 
 test("report renders evidence, filters, issue copy controls, and manual steps", () => {
-  const html = renderToStaticMarkup(<ReportView report={reportWith()} />);
+  const html = renderToStaticMarkup(
+    <LanguageProvider>
+      <ReportView report={reportWith()} />
+    </LanguageProvider>,
+  );
 
   assert.match(html, /owner\/repo/);
   assert.match(html, /Potential hardcoded credential/);
@@ -80,8 +85,50 @@ test("report renders evidence, filters, issue copy controls, and manual steps", 
   assert.match(html, /Static analysis only/);
 });
 
+test("report renders Persian interface while keeping technical findings unchanged", () => {
+  const html = renderToStaticMarkup(
+    <LanguageProvider initialLocale="fa">
+      <ReportView report={reportWith()} />
+    </LanguageProvider>,
+  );
+
+  assert.match(html, /گزارش تحلیل مخزن/);
+  assert.match(html, /شواهد مطابقت دارد/);
+  assert.match(html, /کپی عنوان/);
+  assert.match(html, /ارسال دستی ایشو/);
+  assert.match(html, /فقط تحلیل ایستا/);
+  assert.match(html, /Potential hardcoded credential/);
+  assert.match(html, /src\/config\.ts/);
+  assert.match(html, /dir="ltr"/);
+});
+
+test("report exposes the AI failure reason and marks the configured model as unused", () => {
+  const report = reportWith();
+  report.mode = {
+    ai: false,
+    provider: "OpenAI-compatible endpoint",
+    model: "gemini-3.6-flash",
+    note: "AI review was configured but unavailable.",
+  };
+  report.warnings = ["AI review failed: AI provider timed out."];
+
+  const html = renderToStaticMarkup(
+    <LanguageProvider>
+      <ReportView report={report} />
+    </LanguageProvider>,
+  );
+
+  assert.match(html, /not used/);
+  assert.match(html, /AI review could not complete: AI provider timed out/);
+  assert.match(html, /gemini-3\.6-flash/);
+});
+
 test("report escapes repository and finding text instead of rendering HTML", () => {
-  const html = renderToStaticMarkup(<ReportView report={reportWith("<script>alert(1)</script>")} />);
+  const html = renderToStaticMarkup(
+    <LanguageProvider>
+      <ReportView report={reportWith("<script>alert(1)</script>")} />
+    </LanguageProvider>,
+  );
   assert.equal(html.includes("<script>alert(1)</script>"), false);
   assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
 });

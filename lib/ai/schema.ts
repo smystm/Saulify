@@ -41,6 +41,15 @@ export function parseAiResponse(raw: string): ParsedAiResponse {
   }
 
   const trimmed = raw.trim();
+  if (
+    !trimmed.includes("{") &&
+    /^(sorry\b|i (?:cannot|can't|am unable|'m unable)\b)/i.test(trimmed)
+  ) {
+    return {
+      ok: false,
+      error: "The AI provider declined to review the supplied code. Try another model or provider.",
+    };
+  }
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
   const firstBrace = trimmed.indexOf("{");
   const lastBrace = trimmed.lastIndexOf("}");

@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/url.test.ts tests/github.test.ts tests/ai.test.ts tests/static.test.ts tests/security.test.ts tests/select-files.test.ts tests/render.test.tsx"
+    "test": "tsx --test tests/url.test.ts tests/github.test.ts tests/ai.test.ts tests/static.test.ts tests/security.test.ts tests/select-files.test.ts tests/i18n.test.ts tests/render.test.tsx"
   },
   "dependencies": {
     "next": "16.4.3",

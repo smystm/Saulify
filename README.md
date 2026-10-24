@@ -15,6 +15,17 @@ Saulify is an open-source, read-only GitHub repository analyzer. Paste a public 
 
 Reports are stored in the browser session (`sessionStorage`) by design. No database or account is required.
 
+## Languages and direction
+
+The interface supports English (default) and Persian. The visible EN/FA switcher appears on the landing page, report page, and report loading/missing states.
+
+- English keeps the existing LTR layout and system UI font.
+- Persian sets `<html lang="fa" dir="rtl">`, applies Google Fonts **Vazirmatn**, and uses RTL-aware logical layout utilities.
+- The selected language persists in `localStorage` and a cookie, so it survives navigation and refreshes. Switching languages never navigates, so the current form or session-scoped report is preserved.
+- UI labels, instructions, filters, errors, dates, and counts are localized.
+- Repository metadata, code evidence, file paths, finding text, warnings, and GitHub issue drafts stay in their original language and are rendered LTR. Technical content is never machine-translated by the UI.
+- Translations live in `lib/i18n/en.ts` and `lib/i18n/fa.ts`; Persian strings are not hardcoded in components.
+
 ## Stack
 
 - Next.js 16 App Router, React 19, TypeScript
@@ -81,6 +92,16 @@ Ollama is called through its local chat API from the server. If the app runs in 
 
 If AI configuration is missing or a provider request fails, the analysis still completes with static findings. The report explicitly shows the degraded mode and warning.
 
+### AI provider troubleshooting
+
+- The report banner shows the configured provider/model and appends **not used** when the request did not complete. It also shows the provider failure reason instead of only “static analysis only”.
+- Google Gemini’s OpenAI-compatible endpoint sets `reasoning_effort=low` and `max_tokens=8192` for Gemini hosts. Gemini 3 models cannot disable reasoning, and the default reasoning level can consume most of the response budget or exceed the request timeout.
+- `gemini-3.8-flash` is capacity-sensitive and may return `503`, close the connection, or take longer than the route allows. If that happens, try `gemini-3.6-flash` or another currently available model.
+- `User location is not supported` is returned by Google when the server's egress region is not supported by the Gemini API. Google AI Studio/Gemini is not available in some regions, including Iran. Use a provider endpoint that is accessible from your region or a local Ollama model; changing the model will not fix that error. Static analysis still works without any AI provider.
+- `HTTP 429` means the provider's rate limit or free-tier quota is exhausted. Wait for the quota window to reset, use a paid key, or switch providers. The report keeps the exact HTTP status in its warning.
+- Gemini may occasionally decline a repository review with a prose refusal. Saulify detects this and reports that the model declined instead of claiming the response was malformed. The neutral review prompt reduces refusals, but a different model or provider is the reliable fallback.
+- AI calls time out after 45 seconds. The report warning preserves the concrete provider error, such as an HTTP status or timeout.
+
 ## Safety model
 
 - **No execution:** source is only fetched and parsed as text. Saulify does not install dependencies, run scripts, run builds, invoke package lifecycle hooks, or execute repository code.
@@ -101,7 +122,7 @@ npm run typecheck
 npm run build
 ```
 
-The tests cover URL/SSRF validation, GitHub API failure mapping, AI output parsing and evidence checks, secret redaction, file-selection boundaries, rate limiting, and server-side report rendering.
+The tests cover URL/SSRF validation, GitHub API failure mapping, AI output parsing and evidence checks, secret redaction, file-selection boundaries, rate limiting, dictionary key parity, Persian rendering, and server-side report rendering.
 
 ## Deployment
 
