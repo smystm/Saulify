@@ -54,6 +54,7 @@ The app works without any environment variables. It uses unauthenticated GitHub 
 | `MAX_REPO_SIZE_MB` | No | Repository size safety limit. Default `250`. |
 | `AI_PROVIDER` | No | `auto`, `opencode`, `openai-compatible`, `ollama`, or `off`. Default `auto`. |
 | `AI_MODEL` | For hosted AI | Model identifier accepted by the selected provider. |
+| `AI_REASONING_EFFORT` | No | `low`, `medium`, or `high`. Sends `reasoning_effort` for OpenAI-compatible providers; use `low` when a proxy routes to a reasoning model and output gets truncated. Gemini endpoints always use `low`. |
 | `OPENCODE_API_KEY` | For OpenCode Zen | Server-side API key. |
 | `OPENCODE_BASE_URL` | No | Defaults to `https://opencode.ai/zen/v1`. |
 | `AI_BASE_URL` | For generic provider | OpenAI-compatible API base URL, usually ending in `/v1`. |

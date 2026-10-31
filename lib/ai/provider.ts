@@ -1,4 +1,5 @@
 export type AiProviderName = "opencode" | "openai-compatible" | "ollama";
+export type AiReasoningEffort = "low" | "medium" | "high";
 
 export type AiConfig = {
   provider: AiProviderName;
@@ -6,6 +7,7 @@ export type AiConfig = {
   model: string;
   baseUrl: string;
   apiKey: string | null;
+  reasoningEffort?: AiReasoningEffort | null;
 };
 
 export type AiResolution =
@@ -22,6 +24,13 @@ function isGeminiEndpoint(baseUrl: string): boolean {
   } catch {
     return false;
   }
+}
+
+function parseReasoningEffort(raw: string | undefined): AiReasoningEffort | null {
+  const value = raw?.trim().toLowerCase();
+  if (!value) return null;
+  if (value === "low" || value === "medium" || value === "high") return value;
+  throw new Error("AI_REASONING_EFFORT must be low, medium, or high.");
 }
 
 function normalizeBaseUrl(raw: string, allowLocalHttp: boolean): string {
@@ -48,6 +57,8 @@ export function resolveAiProvider(env: NodeJS.ProcessEnv = process.env): AiResol
   }
 
   try {
+    const reasoningEffort = parseReasoningEffort(env.AI_REASONING_EFFORT);
+
     if (selected === "opencode") {
       const apiKey = env.OPENCODE_API_KEY?.trim() || env.AI_API_KEY?.trim();
       if (!apiKey || !model) {
@@ -61,6 +72,7 @@ export function resolveAiProvider(env: NodeJS.ProcessEnv = process.env): AiResol
           model,
           baseUrl: normalizeBaseUrl(env.OPENCODE_BASE_URL?.trim() || "https://opencode.ai/zen/v1", false),
           apiKey,
+          reasoningEffort,
         },
         note: "AI review uses OpenCode Zen.",
       };
@@ -79,6 +91,7 @@ export function resolveAiProvider(env: NodeJS.ProcessEnv = process.env): AiResol
           model,
           baseUrl: normalizeBaseUrl(baseUrl, true),
           apiKey: env.AI_API_KEY?.trim() || null,
+          reasoningEffort,
         },
         note: "AI review uses a custom OpenAI-compatible endpoint.",
       };
@@ -115,6 +128,7 @@ export function resolveAiProvider(env: NodeJS.ProcessEnv = process.env): AiResol
           model,
           baseUrl: normalizeBaseUrl(env.OPENCODE_BASE_URL?.trim() || "https://opencode.ai/zen/v1", false),
           apiKey: openCodeKey,
+          reasoningEffort,
         },
         note: "AI review uses OpenCode Zen.",
       };
@@ -129,6 +143,7 @@ export function resolveAiProvider(env: NodeJS.ProcessEnv = process.env): AiResol
           model,
           baseUrl: normalizeBaseUrl(env.AI_BASE_URL.trim(), true),
           apiKey: env.AI_API_KEY?.trim() || null,
+          reasoningEffort,
         },
         note: "AI review uses a custom OpenAI-compatible endpoint.",
       };
@@ -205,6 +220,7 @@ export async function requestAiCompletion(
 
   const isOllama = config.provider === "ollama";
   const isGemini = config.provider === "openai-compatible" && isGeminiEndpoint(config.baseUrl);
+  const reasoningEffort = isGemini ? "low" : config.reasoningEffort;
   const endpoint = isOllama ? `${config.baseUrl}/api/chat` : `${config.baseUrl}/chat/completions`;
   const body = isOllama
     ? {
@@ -218,11 +234,14 @@ export async function requestAiCompletion(
         model: config.model,
         temperature: 0.1,
         max_tokens: isGemini ? AI_MAX_OUTPUT_TOKENS : 3_200,
+        // Some proxies stream by default; the client parses one JSON body.
+        stream: false,
         messages,
         // Gemini 3 models always reason. Keeping the effort low makes the
         // request usable inside the API route's time budget while still
-        // leaving enough output tokens for the JSON review.
-        ...(isGemini ? { reasoning_effort: "low" } : {}),
+        // leaving enough output tokens for the JSON review. Proxies that hide
+        // a reasoning model behind another name need AI_REASONING_EFFORT=low.
+        ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
       };
 
   let response: Response;

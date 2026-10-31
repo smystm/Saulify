@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { normalizeAiFindings, buildAiPrompt, reviewRepositoryWithAI } from "../lib/ai/analyze";
-import { requestAiCompletion } from "../lib/ai/provider";
+import { requestAiCompletion, resolveAiProvider } from "../lib/ai/provider";
 import { parseAiResponse } from "../lib/ai/schema";
 import { redactSensitiveText } from "../lib/analyzer/static";
 import type { RepoMetadata } from "../lib/github/client";
@@ -184,6 +184,33 @@ test("non-Gemini OpenAI-compatible requests do not send Gemini-only options", as
   assert.ok(requestBody);
   assert.equal((requestBody as Record<string, unknown>).reasoning_effort, undefined);
   assert.equal((requestBody as Record<string, unknown>).max_tokens, 3200);
+  assert.equal((requestBody as Record<string, unknown>).stream, false);
+});
+
+test("AI_REASONING_EFFORT opts non-Gemini providers into low reasoning", async () => {
+  const resolution = resolveAiProvider({
+    NODE_ENV: "test",
+    AI_PROVIDER: "openai-compatible",
+    AI_BASE_URL: "https://provider.example/v1",
+    AI_MODEL: "custom-model",
+    AI_REASONING_EFFORT: "low",
+  } as NodeJS.ProcessEnv);
+  assert.equal(resolution.configured, true);
+  if (!resolution.configured) return;
+
+  let requestBody: Record<string, unknown> | null = null;
+  const fetchImpl = (async (_url: string | URL | Request, init?: RequestInit) => {
+    requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return new Response(JSON.stringify({ choices: [{ message: { content: '{"findings":[]}' } }] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }) as typeof fetch;
+
+  await requestAiCompletion(resolution.config, "system", "user", fetchImpl);
+
+  assert.ok(requestBody);
+  assert.equal((requestBody as Record<string, unknown>).reasoning_effort, "low");
 });
 
 test("AI review returns validated findings and reports enabled mode", async () => {
