@@ -100,6 +100,87 @@ html[lang="fa"] [class*="tracking-"] {
   animation: soft-fade 320ms ease-out both;
 }
 
+.onboarding-dialog {
+  width: min(92vw, 34rem);
+  max-height: min(90vh, 46rem);
+  margin: auto;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 1.5rem;
+  background: linear-gradient(180deg, #0d110f 0%, #070908 100%);
+  color: var(--foreground);
+  overflow: auto;
+  box-shadow: 0 30px 90px rgb(0 0 0 / 0.65);
+}
+
+.onboarding-dialog::backdrop {
+  background: rgb(3 5 4 / 0.74);
+  backdrop-filter: blur(6px);
+}
+
+.onboarding-dialog[open] {
+  animation: dialog-in 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.onboarding-dialog[open]::backdrop {
+  animation: soft-fade 280ms ease-out both;
+}
+
+.onboarding-panel {
+  padding: 1.5rem;
+}
+
+html:has(.onboarding-dialog[open]) {
+  overflow: hidden;
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.onboarding-slide {
+  animation: slide-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+html[dir="rtl"] .onboarding-slide {
+  animation-name: slide-in-rtl;
+}
+
+@keyframes slide-in-rtl {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (min-width: 640px) {
+  .onboarding-panel {
+    padding: 2rem;
+  }
+}
+
 details > summary::-webkit-details-marker {
   display: none;
 }

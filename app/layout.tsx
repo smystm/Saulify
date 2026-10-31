@@ -1,11 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Vazirmatn } from "next/font/google";
+import localFont from "next/font/local";
 import { LanguageProvider } from "@/components/language-provider";
+import { Onboarding } from "@/components/onboarding";
 import "./globals.css";
 
-const vazirmatn = Vazirmatn({
-  subsets: ["arabic", "latin"],
+// Self-hosted so builds do not depend on reaching fonts.googleapis.com.
+const vazirmatn = localFont({
+  src: "./fonts/Vazirmatn.woff2",
   variable: "--font-vazirmatn",
+  weight: "100 900",
   display: "swap",
 });
 
@@ -31,7 +34,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" dir="ltr" className={`${vazirmatn.variable} h-full`}>
       <body className="min-h-full bg-[#070908] font-sans text-zinc-100 antialiased">
-        <LanguageProvider>{children}</LanguageProvider>
+        <LanguageProvider>
+          {children}
+          <Onboarding />
+        </LanguageProvider>
       </body>
     </html>
   );

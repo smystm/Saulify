@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ReportView } from "../components/report-view";
+import { FeaturesView } from "../components/features-view";
+import { Onboarding } from "../components/onboarding";
 import { LanguageProvider } from "../components/language-provider";
 import type { Report } from "../lib/reports/schema";
 
@@ -131,4 +133,56 @@ test("report escapes repository and finding text instead of rendering HTML", () 
   );
   assert.equal(html.includes("<script>alert(1)</script>"), false);
   assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+});
+
+test("features page renders all four capabilities and the replay control", () => {
+  const html = renderToStaticMarkup(
+    <LanguageProvider>
+      <FeaturesView />
+    </LanguageProvider>,
+  );
+
+  assert.match(html, /Security Analysis/);
+  assert.match(html, /Code Quality/);
+  assert.match(html, /Architecture Analysis/);
+  assert.match(html, /AI-Powered Insights/);
+  assert.match(html, /Replay the tour/);
+  assert.match(html, /Analyze a repository/);
+  assert.match(html, /id="capability-0"/);
+  assert.match(html, /id="capability-3"/);
+});
+
+test("features page and onboarding render in Persian", () => {
+  const features = renderToStaticMarkup(
+    <LanguageProvider initialLocale="fa">
+      <FeaturesView />
+    </LanguageProvider>,
+  );
+  const onboarding = renderToStaticMarkup(
+    <LanguageProvider initialLocale="fa">
+      <Onboarding />
+    </LanguageProvider>,
+  );
+
+  assert.match(features, /تحلیل امنیتی/);
+  assert.match(features, /بینش‌های مبتنی بر هوش مصنوعی/);
+  assert.match(features, /پخش دوباره تور/);
+  assert.match(onboarding, /تور محصول/);
+  assert.match(onboarding, /رد کردن/);
+  assert.match(onboarding, /گام ۱ از ۴/);
+});
+
+test("onboarding starts on the first capability with progress and controls", () => {
+  const html = renderToStaticMarkup(
+    <LanguageProvider>
+      <Onboarding />
+    </LanguageProvider>,
+  );
+
+  assert.match(html, /Product tour/);
+  assert.match(html, /Security Analysis/);
+  assert.match(html, /1 \/ 4/);
+  assert.match(html, /Skip/);
+  assert.match(html, /Previous/);
+  assert.match(html, /Next/);
 });

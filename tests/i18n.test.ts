@@ -31,6 +31,12 @@ test("English and Persian dictionaries have the same typed shape", () => {
   assert.equal(fa.home.steps.length, en.home.steps.length);
   assert.equal(fa.home.how.cards.length, en.home.how.cards.length);
   assert.equal(fa.home.trust.length, en.home.trust.length);
+  assert.equal(en.features.capabilities.length, 4);
+  assert.equal(fa.features.capabilities.length, 4);
+  assert.deepEqual(
+    fa.features.capabilities.map((capability) => capability.points.length),
+    [3, 3, 3, 3],
+  );
 });
 
 test("Persian dictionary contains translated report and error copy", () => {
@@ -38,6 +44,10 @@ test("Persian dictionary contains translated report and error copy", () => {
   assert.match(fa.report.submit.title, /[\u0600-\u06FF]/);
   assert.match(fa.home.errors.invalidUrl, /[\u0600-\u06FF]/);
   assert.match(fa.home.apiErrors.repo_not_found, /[\u0600-\u06FF]/);
+  assert.match(fa.features.title, /[\u0600-\u06FF]/);
+  assert.match(fa.features.capabilities[0].title, /[\u0600-\u06FF]/);
+  assert.match(fa.onboarding.skip, /[\u0600-\u06FF]/);
+  assert.match(fa.onboarding.progress("۱", "۴"), /[\u0600-\u06FF]/);
   assert.match(
     fa.report.summary({
       total: "۲",

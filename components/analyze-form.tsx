@@ -173,6 +173,9 @@ export function AnalyzeForm() {
           Saulify
         </Link>
         <nav className="flex items-center gap-3 text-xs text-zinc-400 sm:gap-5">
+          <Link className="transition hover:text-white" href="/features">
+            {t.common.features}
+          </Link>
           <a className="hidden transition hover:text-white sm:block" href="#how-it-works">
             {t.home.navHow}
           </a>

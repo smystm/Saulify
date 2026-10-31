@@ -20,7 +20,7 @@ Reports are stored in the browser session (`sessionStorage`) by design. No datab
 The interface supports English (default) and Persian. The visible EN/FA switcher appears on the landing page, report page, and report loading/missing states.
 
 - English keeps the existing LTR layout and system UI font.
-- Persian sets `<html lang="fa" dir="rtl">`, applies Google Fonts **Vazirmatn**, and uses RTL-aware logical layout utilities.
+- Persian sets `<html lang="fa" dir="rtl">`, applies the self-hosted **Vazirmatn** font, and uses RTL-aware logical layout utilities.
 - The selected language persists in `localStorage` and a cookie, so it survives navigation and refreshes. Switching languages never navigates, so the current form or session-scoped report is preserved.
 - UI labels, instructions, filters, errors, dates, and counts are localized.
 - Repository metadata, code evidence, file paths, finding text, warnings, and GitHub issue drafts stay in their original language and are rendered LTR. Technical content is never machine-translated by the UI.

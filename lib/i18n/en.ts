@@ -12,6 +12,7 @@ export const en = {
     enShort: "EN",
     faShort: "FA",
     readOnly: "Read-only analyzer",
+    features: "Features",
     repository: "Repository",
     issues: "Issues",
     newAnalysis: "New analysis",
@@ -223,6 +224,73 @@ export const en = {
     missingDescription:
       "Saulify keeps reports only in the current browser session. Reloading after the session ends, opening the link elsewhere, or clearing site data removes it.",
     startNew: "Start a new analysis",
+  },
+  features: {
+    eyebrow: "Four layers of review",
+    title: "Four ways to see what a commit missed.",
+    description:
+      "Every analysis combines deterministic rules with optional AI review, then ties each finding back to the code that raised the flag.",
+    replay: "Replay the tour",
+    cta: {
+      title: "Ready to inspect a repository?",
+      description: "Paste a public GitHub URL and get an evidence-backed review in about a minute.",
+      action: "Analyze a repository",
+    },
+    capabilities: [
+      {
+        title: "Security Analysis",
+        short: "Catch risky code before it ships.",
+        description:
+          "Surface exposed secrets, injection-prone patterns, and other vulnerabilities, each anchored to the exact file and line that raised the flag.",
+        points: [
+          "Exposed credentials and unsafe secrets",
+          "Injection and risky data flow patterns",
+          "Prompt-injection resistance in AI flows",
+        ],
+      },
+      {
+        title: "Code Quality",
+        short: "Keep the codebase easy to change.",
+        description:
+          "Find duplication, tangled complexity, and readability traps that slow reviews down and make future changes riskier than they should be.",
+        points: [
+          "Duplication and copy-paste drift",
+          "Complex branches and oversized functions",
+          "Readability and maintainability signals",
+        ],
+      },
+      {
+        title: "Architecture Analysis",
+        short: "See how the pieces fit together.",
+        description:
+          "Map the project structure, module dependencies, and component relationships to expose layers that are too coupled or boundaries that leak.",
+        points: [
+          "Project structure and module layout",
+          "Dependency direction and cycles",
+          "Coupling and design weak spots",
+        ],
+      },
+      {
+        title: "AI-Powered Insights",
+        short: "Explanations you can verify.",
+        description:
+          "An optional AI reviewer adds context and a suggested direction. Every result carries a confidence level and the evidence behind it.",
+        points: [
+          "Findings with file-level evidence",
+          "Confidence levels and clear reasoning",
+          "Actionable, copy-ready issue drafts",
+        ],
+      },
+    ],
+  },
+  onboarding: {
+    label: "Product tour",
+    progress: (current: string, total: string) => `${current} / ${total}`,
+    step: (current: string, total: string) => `Step ${current} of ${total}`,
+    skip: "Skip",
+    previous: "Previous",
+    next: "Next",
+    getStarted: "Get started",
   },
 };
 
