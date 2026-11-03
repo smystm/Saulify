@@ -8,12 +8,15 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/url.test.ts tests/github.test.ts tests/ai.test.ts tests/static.test.ts tests/security.test.ts tests/select-files.test.ts tests/i18n.test.ts tests/render.test.tsx"
+    "test": "tsx --test tests/url.test.ts tests/github.test.ts tests/ai.test.ts tests/static.test.ts tests/security.test.ts tests/select-files.test.ts tests/i18n.test.ts tests/render.test.tsx tests/ast-javascript.test.ts tests/ast-python.test.ts tests/ast-imports.test.ts tests/quality-metrics.test.ts tests/quality-dead-code.test.ts tests/quality-duplication.test.ts tests/architecture-analysis.test.ts tests/quality-schema.test.ts tests/quality-integration.test.ts tests/dependency-parsers.test.ts tests/dependency-analysis.test.ts"
   },
   "dependencies": {
+    "@lezer/python": "^1.1.19",
     "next": "16.4.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "typescript": "^5.9.3",
+    "yaml": "^2.9.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -24,7 +27,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
-    "tsx": "^4.23.15",
-    "typescript": "^5"
+    "tsx": "^4.23.15"
   }
 }

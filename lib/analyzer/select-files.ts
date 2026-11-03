@@ -67,18 +67,23 @@ function segments(path: string): string[] {
   return path.split("/");
 }
 
+export function isIgnoredPath(path: string): boolean {
+  const parts = segments(path);
+  if (parts.some((part) => IGNORED_SEGMENTS.has(part.toLowerCase()))) return true;
+  return IGNORED_FILE_PATTERNS.some((pattern) => pattern.test(path));
+}
+
+export function isSourcePath(path: string): boolean {
+  if (isIgnoredPath(path)) return false;
+  const dot = path.lastIndexOf(".");
+  if (dot < 0) return false;
+  return SOURCE_EXTENSIONS.has(path.slice(dot).toLowerCase());
+}
+
 export function isAnalyzableFile(entry: TreeEntry): boolean {
   if (entry.type !== "blob" || entry.size <= 0 || entry.size > MAX_FILE_SIZE_BYTES) return false;
   if (entry.path.length > 320) return false;
-
-  const parts = segments(entry.path);
-  if (parts.some((part) => IGNORED_SEGMENTS.has(part.toLowerCase()))) return false;
-  if (IGNORED_FILE_PATTERNS.some((pattern) => pattern.test(entry.path))) return false;
-
-  const dot = entry.path.lastIndexOf(".");
-  if (dot < 0) return false;
-  const extension = entry.path.slice(dot).toLowerCase();
-  return SOURCE_EXTENSIONS.has(extension);
+  return isSourcePath(entry.path);
 }
 
 function scoreFile(path: string): number {

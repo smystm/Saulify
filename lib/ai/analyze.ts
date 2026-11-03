@@ -19,7 +19,7 @@ Return ONLY one JSON object with this shape:
       "title": "short specific issue title",
       "severity": "critical | high | medium | low",
       "confidence": "high | medium | low",
-      "category": "security | correctness | reliability | performance | maintainability | other",
+      "category": "security | correctness | reliability | performance | maintainability | architecture | other",
       "explanation": "what the code does and why it may be a problem",
       "file": "exact path from the provided file list, or null",
       "startLine": 1,

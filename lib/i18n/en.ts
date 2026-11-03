@@ -37,6 +37,7 @@ export const en = {
       "Validating repository",
       "Reading the source tree",
       "Running static rules",
+      "Measuring code quality and architecture",
       "Checking for AI-reviewed issues",
       "Validating and packaging report",
     ],
@@ -51,7 +52,7 @@ export const en = {
       },
       {
         title: "AI is optional",
-        copy: "Static rules work without keys. AI adds validated hypotheses.",
+        copy: "Static and AST checks work without keys. AI adds validated hypotheses.",
       },
     ],
     how: {
@@ -61,7 +62,7 @@ export const en = {
         "Saulify is intentionally not an autonomous fixer. It produces review candidates and ready-to-copy issue drafts. A human decides what happens next.",
       cards: [
         ["01", "Read", "Validated GitHub URL, repository metadata, default branch, and a capped subset of source files."],
-        ["02", "Inspect", "Pattern rules and optional AI review look for risky code shapes, not runtime behavior."],
+        ["02", "Inspect", "Pattern rules, AST structural checks, and optional AI review look for risky code shapes, not runtime behavior."],
         ["03", "Report", "Findings are schema-validated, deduplicated, and paired with manual submission instructions."],
       ],
     },
@@ -123,7 +124,9 @@ export const en = {
       ai: boolean;
     }) =>
       `Found ${p.total} potential issue${p.total === "1" ? "" : "s"} across ${p.files} analyzed files (critical ${p.critical}, high ${p.high}, medium ${p.medium}, low ${p.low}) using ${
-        p.ai ? "static rules plus validated AI review" : "deterministic static rules"
+        p.ai
+          ? "deterministic static rules, AST structural analysis, code quality and architecture analysis, dependency vulnerability analysis, and validated AI review"
+          : "deterministic static rules, AST structural analysis, code quality and architecture analysis, and dependency vulnerability analysis"
       }. ${p.verified} finding${p.verified === "1" ? " has" : "s have"} source-matched evidence; ${p.hypotheses} ${
         p.hypotheses === "1" ? "remains an unverified hypothesis" : "remain unverified hypotheses"
       }. Review every item before filing.`,
@@ -141,6 +144,7 @@ export const en = {
       medium: "Medium",
       low: "Low",
       verifiedOnly: "Evidence matched only",
+      allSources: "All sources",
     },
     severities: {
       critical: "Critical",
@@ -154,6 +158,7 @@ export const en = {
       reliability: "Reliability",
       performance: "Performance",
       maintainability: "Maintainability",
+      architecture: "Architecture",
       other: "Other",
     },
     confidence: {
@@ -165,6 +170,13 @@ export const en = {
     source: {
       ai: "AI reviewed",
       static: "Static rule",
+      ast: "AST analyzed",
+      quality: "Quality & architecture",
+      dependency: "Dependency check",
+    },
+    assessment: {
+      measured: "Measured signal",
+      advisory: "Recommendation",
     },
     evidenceStatus: {
       verified: "Evidence matched",
@@ -175,6 +187,8 @@ export const en = {
       evidence: "Evidence",
       why: "Why it may matter",
       suggested: "Suggested direction",
+      references: "References",
+      relatedLocations: "Related locations",
       draft: "GitHub issue draft",
       copyTitle: "Copy title",
       copyDescription: "Copy description",
@@ -188,12 +202,12 @@ export const en = {
       failure: (reason: string) =>
         `AI review could not complete: ${reason} Static findings are still shown.`,
       staticNote:
-        "No AI review was available. Deterministic static rules ran against the selected files, and every result remains human-reviewable.",
+        "No AI review was available. Deterministic rules, AST structural checks, code quality metrics, architecture checks, and dependency checks ran against the selected files, and every result remains human-reviewable.",
     },
     noIssues: "No evidence-backed issues found",
     noMatches: "No findings match these filters",
     noIssuesDescription:
-      "This does not prove the repository is defect-free. Saulify inspects a limited file set with pattern rules, not every execution path.",
+      "This does not prove the repository is defect-free. Saulify inspects a limited file set with pattern rules, AST structural checks, code quality metrics, architecture checks, and dependency metadata, not every execution path.",
     noMatchesDescription: "Clear the filters to see the rest of the report.",
     clearFilters: "Clear filters",
     submit: {
@@ -216,7 +230,7 @@ export const en = {
       no: "No",
     },
     disclaimer:
-      "This report is a review aid, not a security audit. Static rules can produce false positives and the selected file set is limited. Validate every finding before filing it.",
+      "This report is a review aid, not a security audit. Static and AST checks can produce false positives and the selected file set is limited. Validate every finding before filing it.",
     footerLeft: "Saulify · read-only repository analysis",
     footerRight: "No source files were modified or executed.",
     loading: "Opening report…",

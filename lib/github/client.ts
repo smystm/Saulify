@@ -250,6 +250,7 @@ export async function fetchFile(
   branch: string,
   path: string,
   fetchImpl: FetchLike = fetch,
+  maxChars = MAX_FILE_CHARS,
 ): Promise<FetchedFile> {
   const encodedPath = path
     .split("/")
@@ -259,18 +260,18 @@ export async function fetchFile(
     `/repos/${encodeURIComponent(ref.owner)}/${encodeURIComponent(ref.name)}/contents/${encodedPath}?ref=${encodeURIComponent(branch)}`,
     "application/vnd.github.raw+json",
     fetchImpl,
-    MAX_FILE_CHARS,
+    maxChars,
   );
 
   const contentType = response.headers.get("content-type") ?? "";
-  const text = await readLimitedText(response, MAX_FILE_CHARS);
+  const text = await readLimitedText(response, maxChars);
 
   if (contentType.includes("application/json") && text.trimStart().startsWith("{")) {
     try {
       const payload = JSON.parse(text) as { content?: string; encoding?: string };
       if (payload.content && payload.encoding === "base64") {
         const decoded = Buffer.from(payload.content.replace(/\n/g, ""), "base64").toString("utf8");
-        if (decoded.length > MAX_FILE_CHARS) {
+        if (decoded.length > maxChars) {
           throw new AnalysisError("A source file exceeded the analysis size limit.", 413, "file_too_large");
         }
         return { path, content: decoded };
@@ -313,6 +314,39 @@ export async function fetchFiles(
   }
 
   await Promise.all(Array.from({ length: Math.min(4, paths.length) }, () => worker()));
+  files.sort((a, b) => a.path.localeCompare(b.path));
+  return { files, skipped };
+}
+
+export async function fetchDependencyFiles(
+  ref: RepoRef,
+  branch: string,
+  paths: string[],
+  maxChars: number,
+  fetchImpl: FetchLike = fetch,
+): Promise<{ files: FetchedFile[]; skipped: number }> {
+  const files: FetchedFile[] = [];
+  let skipped = 0;
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < paths.length) {
+      const path = paths[cursor++];
+      try {
+        const file = await fetchFile(ref, branch, path, fetchImpl, maxChars);
+        if (file.content.includes("\u0000")) {
+          skipped++;
+          continue;
+        }
+        files.push(file);
+      } catch (error) {
+        if (error instanceof AnalysisError && error.status === 429) throw error;
+        skipped++;
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(2, paths.length) }, () => worker()));
   files.sort((a, b) => a.path.localeCompare(b.path));
   return { files, skipped };
 }

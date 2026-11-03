@@ -475,6 +475,14 @@ const RULES: StaticRule[] = [
   },
 ];
 
+const SOURCE_LABELS: Record<Finding["source"], string> = {
+  static: "static rule",
+  ast: "AST structural analysis",
+  quality: "code quality and architecture analysis",
+  ai: "AI review",
+  dependency: "dependency analysis",
+};
+
 const SEVERITY_WEIGHT: Record<Severity, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
 function hash(input: string): string {
@@ -498,8 +506,11 @@ export function buildIssue(finding: {
   file: string | null;
   startLine: number | null;
   endLine: number | null;
-  source: "static" | "ai";
+  source: Finding["source"];
   evidenceStatus: "verified" | "unverified";
+  assessment?: "measured" | "advisory";
+  relatedLocations?: Array<{ file: string; startLine: number; endLine: number }>;
+  references?: string[];
 }): { title: string; body: string } {
   const location = finding.file
     ? `${finding.file}${finding.startLine ? `:${finding.startLine}${finding.endLine && finding.endLine !== finding.startLine ? `-${finding.endLine}` : ""}` : ""}`
@@ -512,6 +523,16 @@ export function buildIssue(finding: {
     "## Location",
     `\`${location}\``,
     "",
+    ...(finding.relatedLocations && finding.relatedLocations.length > 0
+      ? [
+          "## Related locations",
+          ...finding.relatedLocations.map(
+            (related) =>
+              `- \`${related.file}:${related.startLine}${related.endLine !== related.startLine ? `-${related.endLine}` : ""}\``,
+          ),
+          "",
+        ]
+      : []),
     "## Evidence",
     finding.evidence ? `~~~\n${finding.evidence.replace(/~~~/g, "~ ~ ~")}\n~~~` : "_No inline evidence was captured._",
     "",
@@ -521,11 +542,17 @@ export function buildIssue(finding: {
     "## Suggested direction",
     finding.suggestedFix,
     "",
+    ...(finding.references && finding.references.length > 0
+      ? ["## References", ...finding.references.map((reference) => `- ${reference}`), ""]
+      : []),
     "## Review notes",
     `- Severity: **${finding.severity}**`,
     `- Confidence: **${finding.confidence}**`,
     `- Evidence: **${finding.evidenceStatus === "verified" ? "matched in source" : "unverified hypothesis"}**`,
-    `- Source: ${finding.source === "static" ? "static rule" : "AI review"}`,
+    ...(finding.assessment
+      ? [`- Assessment: **${finding.assessment === "measured" ? "measured signal" : "recommendation"}**`]
+      : []),
+    `- Source: ${SOURCE_LABELS[finding.source]}`,
     "",
     "> Potential issue identified by Saulify. This is not a confirmed exploit. A maintainer should validate the finding before treating it as a security vulnerability.",
   ].join("\n");

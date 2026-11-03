@@ -87,6 +87,93 @@ test("report renders evidence, filters, issue copy controls, and manual steps", 
   assert.match(html, /Static analysis only/);
 });
 
+test("report renders dependency findings with package metadata, references, and a source filter", () => {
+  const report = reportWith();
+  report.findings.push({
+    id: "dependency-test",
+    source: "dependency",
+    evidenceStatus: "verified",
+    severity: "critical",
+    confidence: "high",
+    category: "security",
+    title: "Vulnerable dependency: lodash@4.17.20 (GHSA-test-1234)",
+    explanation: "Prototype pollution in lodash.",
+    file: "package-lock.json",
+    startLine: null,
+    endLine: null,
+    evidence: "Advisory: GHSA-test-1234\nInstalled: 4.17.20\nFixed: 4.17.21",
+    whyProblematic: "The lockfile resolves an affected version.",
+    suggestedFix: "Upgrade lodash and regenerate the lockfile.",
+    dependency: {
+      ecosystem: "npm",
+      name: "lodash",
+      installedVersion: "4.17.20",
+      declaredRange: "^4.17.20",
+      manifest: "package-lock.json",
+    },
+    references: ["https://osv.dev/vulnerability/GHSA-test-1234"],
+    issue: {
+      title: "[critical] Vulnerable dependency: lodash@4.17.20",
+      body: "## Summary\nPrototype pollution in lodash.",
+    },
+  });
+
+  const html = renderToStaticMarkup(
+    <LanguageProvider>
+      <ReportView report={report} />
+    </LanguageProvider>,
+  );
+
+  assert.match(html, /Dependency check/);
+  assert.match(html, /All sources/);
+  assert.match(html, /lodash@4\.17\.20/);
+  assert.match(html, /References/);
+  assert.match(html, /https:\/\/osv\.dev\/vulnerability\/GHSA-test-1234/);
+});
+
+test("report renders Persian dependency labels while keeping the advisory link unchanged", () => {
+  const report = reportWith();
+  report.findings.push({
+    id: "dependency-test",
+    source: "dependency",
+    evidenceStatus: "unverified",
+    severity: "low",
+    confidence: "medium",
+    category: "maintainability",
+    title: "Dependency update available: lodash 4.17.20 to 4.17.21",
+    explanation: "A newer release exists.",
+    file: "package-lock.json",
+    startLine: null,
+    endLine: null,
+    evidence: "Installed: 4.17.20\nLatest: 4.17.21",
+    whyProblematic: "Older releases may miss fixes.",
+    suggestedFix: "Review the release notes and upgrade deliberately.",
+    dependency: {
+      ecosystem: "npm",
+      name: "lodash",
+      installedVersion: "4.17.20",
+      declaredRange: "^4.17.20",
+      manifest: "package-lock.json",
+    },
+    references: ["https://www.npmjs.com/package/lodash"],
+    issue: {
+      title: "[low] Dependency update available: lodash",
+      body: "## Summary\nA newer release exists.",
+    },
+  });
+
+  const html = renderToStaticMarkup(
+    <LanguageProvider initialLocale="fa">
+      <ReportView report={report} />
+    </LanguageProvider>,
+  );
+
+  assert.match(html, /بررسی وابستگی/);
+  assert.match(html, /همه منابع/);
+  assert.match(html, /منابع/);
+  assert.match(html, /https:\/\/www\.npmjs\.com\/package\/lodash/);
+});
+
 test("report renders Persian interface while keeping technical findings unchanged", () => {
   const html = renderToStaticMarkup(
     <LanguageProvider initialLocale="fa">
@@ -102,6 +189,63 @@ test("report renders Persian interface while keeping technical findings unchange
   assert.match(html, /Potential hardcoded credential/);
   assert.match(html, /src\/config\.ts/);
   assert.match(html, /dir="ltr"/);
+});
+
+test("report renders quality architecture findings with assessment and related locations", () => {
+  const report = reportWith("Circular module dependency");
+  report.findings[0] = {
+    ...report.findings[0],
+    id: "quality-test",
+    source: "quality",
+    category: "architecture",
+    assessment: "measured",
+    confidence: "high",
+    title: "Circular module dependency",
+    file: "src/a.ts",
+    startLine: 3,
+    endLine: 3,
+    relatedLocations: [{ file: "src/b.ts", startLine: 4, endLine: 8 }],
+    issue: {
+      title: "[medium] Circular module dependency in src/a.ts",
+      body: "## Summary\nA cycle was measured.",
+    },
+  };
+
+  const html = renderToStaticMarkup(
+    <LanguageProvider>
+      <ReportView report={report} />
+    </LanguageProvider>,
+  );
+
+  assert.match(html, /Quality &amp; architecture/);
+  assert.match(html, /Measured signal/);
+  assert.match(html, /Architecture/);
+  assert.match(html, /Related locations/);
+  assert.match(html, /src\/b\.ts:4–8/);
+});
+
+test("report renders Persian quality labels", () => {
+  const report = reportWith("Circular module dependency");
+  report.findings[0] = {
+    ...report.findings[0],
+    id: "quality-test",
+    source: "quality",
+    category: "architecture",
+    assessment: "advisory",
+    title: "Circular module dependency",
+    relatedLocations: [{ file: "src/b.ts", startLine: 4, endLine: 8 }],
+  };
+
+  const html = renderToStaticMarkup(
+    <LanguageProvider initialLocale="fa">
+      <ReportView report={report} />
+    </LanguageProvider>,
+  );
+
+  assert.match(html, /کیفیت و معماری/);
+  assert.match(html, /پیشنهاد/);
+  assert.match(html, /معماری/);
+  assert.match(html, /مکان‌های مرتبط/);
 });
 
 test("report exposes the AI failure reason and marks the configured model as unused", () => {

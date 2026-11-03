@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fetchRepoMetadata } from "../lib/github/client";
+import { fetchDependencyFiles, fetchRepoMetadata } from "../lib/github/client";
 import { parseGitHubRepoUrl } from "../lib/github/url";
 import { AnalysisError } from "../lib/errors";
 
@@ -59,6 +59,26 @@ test("maps malformed GitHub payloads to a 502 instead of crashing", async () => 
     (error: unknown) =>
       error instanceof AnalysisError && error.status === 502 && /malformed/i.test(error.message),
   );
+});
+
+test("dependency file fetching enforces its own size cap and skips failures", async () => {
+  const fetchImpl = (async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes("big.json")) return mockResponse(200, "x".repeat(2_000));
+    if (url.includes("missing.json")) return mockResponse(404, JSON.stringify({ message: "Not Found" }));
+    return mockResponse(200, "small");
+  }) as typeof fetch;
+
+  const result = await fetchDependencyFiles(
+    ref,
+    "main",
+    ["small.json", "big.json", "missing.json"],
+    1_000,
+    fetchImpl,
+  );
+
+  assert.deepEqual(result.files.map((file) => file.path), ["small.json"]);
+  assert.equal(result.skipped, 2);
 });
 
 test("normalizes successful repository metadata", async () => {

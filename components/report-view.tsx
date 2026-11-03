@@ -18,6 +18,15 @@ import {
 import type { Locale } from "@/lib/i18n";
 
 const SEVERITY_ORDER: Severity[] = ["critical", "high", "medium", "low"];
+const SOURCE_ORDER: Finding["source"][] = ["static", "ast", "quality", "dependency", "ai"];
+
+const SOURCE_DOT: Record<Finding["source"], string> = {
+  ai: "bg-violet-300",
+  static: "bg-lime-300",
+  ast: "bg-cyan-300",
+  quality: "bg-teal-300",
+  dependency: "bg-rose-300",
+};
 
 const SEVERITY_STYLES: Record<Severity, string> = {
   critical: "border-red-400/25 bg-red-400/10 text-red-300",
@@ -56,6 +65,15 @@ function formatDate(iso: string, locale: Locale): string {
   }
 }
 
+function referenceLabel(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.hostname}${parsed.pathname === "/" ? "" : parsed.pathname}`;
+  } catch {
+    return url;
+  }
+}
+
 function FindingCard({ finding, issuesUrl }: { finding: Finding; issuesUrl: string }) {
   const { t } = useI18n();
   const location = finding.file
@@ -78,7 +96,7 @@ function FindingCard({ finding, issuesUrl }: { finding: Finding; issuesUrl: stri
             {t.report.categories[finding.category]}
           </span>
           <span className="inline-flex items-center gap-1 text-[10px] text-zinc-500">
-            <span className={`h-1.5 w-1.5 rounded-full ${finding.source === "ai" ? "bg-violet-300" : "bg-lime-300"}`} />
+            <span className={`h-1.5 w-1.5 rounded-full ${SOURCE_DOT[finding.source]}`} />
             {t.report.source[finding.source]}
           </span>
           <span
@@ -90,6 +108,11 @@ function FindingCard({ finding, issuesUrl }: { finding: Finding; issuesUrl: stri
           >
             {t.report.evidenceStatus[finding.evidenceStatus]}
           </span>
+          {finding.assessment && (
+            <span className="rounded-full border border-teal-300/20 bg-teal-300/[0.07] px-2 py-0.5 text-[10px] text-teal-200">
+              {t.report.assessment[finding.assessment]}
+            </span>
+          )}
         </div>
         <h2 dir="ltr" className="text-left text-base font-semibold leading-6 tracking-tight text-zinc-100 sm:text-lg">
           {finding.title}
@@ -102,6 +125,40 @@ function FindingCard({ finding, issuesUrl }: { finding: Finding; issuesUrl: stri
             <span className={CONFIDENCE_STYLES[finding.confidence]}>{t.report.confidence[finding.confidence]}</span>
           </span>
         </div>
+        {finding.relatedLocations && finding.relatedLocations.length > 0 && (
+          <div className="mt-2">
+            <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">
+              {t.report.finding.relatedLocations}
+            </div>
+            <ul className="mt-1 space-y-0.5">
+              {finding.relatedLocations.map((related) => (
+                <li
+                  key={`${related.file}:${related.startLine}:${related.endLine}`}
+                  dir="ltr"
+                  className="text-left font-mono text-[11px] text-zinc-500"
+                >
+                  {related.file}:{related.startLine}
+                  {related.endLine !== related.startLine ? `–${related.endLine}` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {finding.dependency && (
+          <div dir="ltr" className="mt-1 flex flex-wrap items-center gap-1.5 text-left font-mono text-[10px] text-zinc-500">
+            <span className="rounded border border-rose-300/15 bg-rose-300/[0.05] px-1.5 py-0.5 text-rose-200/80">
+              {finding.dependency.ecosystem}
+            </span>
+            <span className="break-all">
+              {finding.dependency.name}
+              {finding.dependency.installedVersion
+                ? `@${finding.dependency.installedVersion}`
+                : finding.dependency.declaredRange
+                  ? ` ${finding.dependency.declaredRange}`
+                  : ""}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="space-y-5 px-5 py-5 sm:px-6">
@@ -140,6 +197,29 @@ function FindingCard({ finding, issuesUrl }: { finding: Finding; issuesUrl: stri
             <p dir="ltr" className="text-left text-xs leading-6 text-zinc-400">{finding.suggestedFix}</p>
           </div>
         </div>
+
+        {finding.references && finding.references.length > 0 && (
+          <div>
+            <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+              {t.report.finding.references}
+            </h3>
+            <ul className="space-y-1.5">
+              {finding.references.map((reference) => (
+                <li key={reference}>
+                  <a
+                    href={reference}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex max-w-full items-start gap-1.5 text-left font-mono text-[11px] text-sky-300/80 transition hover:text-sky-200"
+                  >
+                    <ExternalLinkIcon className="mt-0.5 h-3 w-3 shrink-0" />
+                    <span dir="ltr" className="break-all">{referenceLabel(reference)}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <details className="group rounded-xl border border-white/[0.07] bg-white/[0.02]">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3.5 py-3 text-xs font-medium text-zinc-300 transition hover:text-white">
@@ -184,6 +264,7 @@ function FindingCard({ finding, issuesUrl }: { finding: Finding; issuesUrl: stri
 export function ReportView({ report }: { report: Report }) {
   const { locale, t } = useI18n();
   const [severity, setSeverity] = useState<Severity | "all">("all");
+  const [source, setSource] = useState<Finding["source"] | "all">("all");
   const [verifiedOnly, setVerifiedOnly] = useState(false);
 
   const counts = useMemo(() => {
@@ -192,11 +273,27 @@ export function ReportView({ report }: { report: Report }) {
     return base;
   }, [report.findings]);
 
+  const sourceCounts = useMemo(() => {
+    const base: Record<Finding["source"] | "all", number> = {
+      all: report.findings.length,
+      static: 0,
+      ast: 0,
+      quality: 0,
+      dependency: 0,
+      ai: 0,
+    };
+    for (const finding of report.findings) base[finding.source]++;
+    return base;
+  }, [report.findings]);
+
   const verifiedCount = report.findings.filter((finding) => finding.evidenceStatus === "verified").length;
   const hypothesisCount = report.findings.length - verifiedCount;
 
   const visible = report.findings.filter(
-    (finding) => (severity === "all" || finding.severity === severity) && (!verifiedOnly || finding.evidenceStatus === "verified"),
+    (finding) =>
+      (severity === "all" || finding.severity === severity) &&
+      (source === "all" || finding.source === source) &&
+      (!verifiedOnly || finding.evidenceStatus === "verified"),
   );
 
   const localizedSummary = t.report.summary({
@@ -443,6 +540,29 @@ export function ReportView({ report }: { report: Report }) {
                   </label>
                 )}
               </div>
+              {report.findings.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  {(["all", ...SOURCE_ORDER] as const).map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setSource(value)}
+                      aria-pressed={source === value}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-medium transition ${
+                        source === value
+                          ? "border-white/20 bg-white/[0.08] text-zinc-200"
+                          : "border-white/[0.07] bg-white/[0.02] text-zinc-500 hover:border-white/15 hover:text-zinc-300"
+                      }`}
+                    >
+                      {value !== "all" && (
+                        <span className={`h-1.5 w-1.5 rounded-full ${SOURCE_DOT[value]}`} />
+                      )}
+                      {value === "all" ? t.report.filters.allSources : t.report.source[value]}{" "}
+                      <span className="opacity-60">{formatNumber(sourceCounts[value], locale)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="mt-2 space-y-3">
@@ -459,11 +579,12 @@ export function ReportView({ report }: { report: Report }) {
                   <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-zinc-600">
                     {report.findings.length === 0 ? t.report.noIssuesDescription : t.report.noMatchesDescription}
                   </p>
-                  {(severity !== "all" || verifiedOnly) && (
+                  {(severity !== "all" || source !== "all" || verifiedOnly) && (
                     <button
                       type="button"
                       onClick={() => {
                         setSeverity("all");
+                        setSource("all");
                         setVerifiedOnly(false);
                       }}
                       className="mt-4 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-zinc-400 transition hover:text-white"

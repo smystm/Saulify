@@ -8,10 +8,12 @@ export const categorySchema = z.enum([
   "reliability",
   "performance",
   "maintainability",
+  "architecture",
   "other",
 ]);
-export const sourceSchema = z.enum(["static", "ai"]);
+export const sourceSchema = z.enum(["static", "ast", "quality", "ai", "dependency"]);
 export const evidenceStatusSchema = z.enum(["verified", "unverified"]);
+export const assessmentSchema = z.enum(["measured", "advisory"]);
 
 export const githubIssueSchema = z.object({
   title: z.string().min(1).max(220),
@@ -23,10 +25,31 @@ const githubUrlSchema = z
   .url()
   .refine((value) => value.startsWith("https://github.com/"), "Expected an HTTPS GitHub URL.");
 
+export const dependencySchema = z.object({
+  ecosystem: z.enum(["npm", "PyPI"]),
+  name: z.string().min(1).max(214),
+  installedVersion: z.string().max(100).nullable(),
+  declaredRange: z.string().max(120).nullable(),
+  manifest: z.string().max(500),
+});
+
+const httpsReferenceSchema = z
+  .string()
+  .url()
+  .max(500)
+  .refine((value) => value.startsWith("https://"), "Expected an HTTPS reference URL.");
+
+const relatedLocationSchema = z.object({
+  file: z.string().min(1).max(500),
+  startLine: z.number().int().positive(),
+  endLine: z.number().int().positive(),
+});
+
 export const findingSchema = z.object({
   id: z.string().min(1).max(100),
   source: sourceSchema,
   evidenceStatus: evidenceStatusSchema,
+  assessment: assessmentSchema.optional(),
   severity: severitySchema,
   confidence: confidenceSchema,
   category: categorySchema,
@@ -38,6 +61,9 @@ export const findingSchema = z.object({
   evidence: z.string().max(2400),
   whyProblematic: z.string().max(3000),
   suggestedFix: z.string().max(3000),
+  relatedLocations: z.array(relatedLocationSchema).max(8).optional(),
+  dependency: dependencySchema.nullable().optional(),
+  references: z.array(httpsReferenceSchema).max(10).optional(),
   issue: githubIssueSchema,
 });
 
@@ -88,5 +114,6 @@ export const reportSchema = z.object({
 export type Severity = z.infer<typeof severitySchema>;
 export type Confidence = z.infer<typeof confidenceSchema>;
 export type Category = z.infer<typeof categorySchema>;
+export type Assessment = z.infer<typeof assessmentSchema>;
 export type Finding = z.infer<typeof findingSchema>;
 export type Report = z.infer<typeof reportSchema>;

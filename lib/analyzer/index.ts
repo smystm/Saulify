@@ -1,6 +1,7 @@
 import { AnalysisError } from "@/lib/errors";
 import { parseGitHubRepoUrl } from "@/lib/github/url";
 import {
+  fetchDependencyFiles,
   fetchFiles,
   fetchLanguages,
   fetchRepoMetadata,
@@ -9,6 +10,12 @@ import {
 } from "@/lib/github/client";
 import { selectFiles } from "@/lib/analyzer/select-files";
 import { analyzeStaticFiles } from "@/lib/analyzer/static";
+import { analyzeAstFiles } from "@/lib/analyzer/ast";
+import { analyzeCodeQuality } from "@/lib/analyzer/quality";
+import { analyzeArchitecture } from "@/lib/analyzer/architecture";
+import { analyzeDependencies } from "@/lib/analyzer/dependencies";
+import { planDependencyFiles } from "@/lib/analyzer/dependencies/files";
+import { MAX_DEPENDENCY_FILE_CHARS } from "@/lib/analyzer/dependencies/limits";
 import { reviewRepositoryWithAI } from "@/lib/ai/analyze";
 import { reportSchema, type Finding, type Report, type Severity } from "@/lib/reports/schema";
 
@@ -37,11 +44,17 @@ export function dedupeFindings(findings: Finding[]): Finding[] {
 
   for (const finding of findings) {
     const titleKey = finding.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-    const lineBucket = finding.startLine ? Math.round(finding.startLine / 6) : null;
-    const primaryKey = `${finding.file ?? "repo"}|${finding.category}|${titleKey}`;
-    const locationKey = lineBucket
-      ? `${finding.file ?? "repo"}|${finding.category}|line:${lineBucket}`
-      : null;
+    const relatedKey =
+      finding.relatedLocations
+        ?.map((location) => `${location.file}:${location.startLine}:${location.endLine}`)
+        .sort()
+        .join(",") ?? "";
+    const lineBucket = finding.startLine ? Math.floor((finding.startLine - 1) / 6) : null;
+    const primaryKey = `${finding.file ?? "repo"}|${finding.category}|${titleKey}|${relatedKey}`;
+    const locationKey =
+      lineBucket !== null
+        ? `${finding.file ?? "repo"}|${finding.category}|line:${lineBucket}|${relatedKey}`
+        : null;
 
     if (seen.has(primaryKey) || (locationKey !== null && seen.has(locationKey))) continue;
     seen.add(primaryKey);
@@ -51,6 +64,13 @@ export function dedupeFindings(findings: Finding[]): Finding[] {
 
   const severityWeight: Record<Severity, number> = { critical: 0, high: 1, medium: 2, low: 3 };
   const confidenceWeight = { high: 0, medium: 1, low: 2 } as const;
+  const sourceWeight: Record<Finding["source"], number> = {
+    static: 0,
+    ast: 1,
+    quality: 2,
+    dependency: 3,
+    ai: 4,
+  };
 
   return result
     .sort(
@@ -59,12 +79,18 @@ export function dedupeFindings(findings: Finding[]): Finding[] {
         confidenceWeight[a.confidence] - confidenceWeight[b.confidence] ||
         Number(b.evidenceStatus === "verified") - Number(a.evidenceStatus === "verified") ||
         (a.file ?? "").localeCompare(b.file ?? "") ||
-        (a.startLine ?? 0) - (b.startLine ?? 0),
+        (a.startLine ?? 0) - (b.startLine ?? 0) ||
+        sourceWeight[a.source] - sourceWeight[b.source],
     )
     .slice(0, 30);
 }
 
-function makeSummary(findings: Finding[], filesAnalyzed: number, aiEnabled: boolean): string {
+function makeSummary(
+  findings: Finding[],
+  filesAnalyzed: number,
+  aiEnabled: boolean,
+  dependencyEnabled: boolean,
+): string {
   if (findings.length === 0) {
     return `No evidence-backed issues were identified in ${filesAnalyzed} analyzed file${filesAnalyzed === 1 ? "" : "s"}. This is not proof that the repository is free of defects: coverage is intentionally limited.`;
   }
@@ -78,7 +104,14 @@ function makeSummary(findings: Finding[], filesAnalyzed: number, aiEnabled: bool
   );
   const verified = findings.filter((finding) => finding.evidenceStatus === "verified").length;
   const hypotheses = findings.length - verified;
-  const mode = aiEnabled ? "static rules plus validated AI review" : "deterministic static rules";
+  const stages = [
+    "deterministic static rules",
+    "AST structural analysis",
+    "code quality and architecture analysis",
+    ...(dependencyEnabled ? ["dependency vulnerability analysis"] : []),
+    ...(aiEnabled ? ["validated AI review"] : []),
+  ];
+  const mode = `${stages.slice(0, -1).join(", ")}${stages.length > 1 ? ", and " : ""}${stages[stages.length - 1]}`;
 
   return `Found ${findings.length} potential issue${findings.length === 1 ? "" : "s"} across ${filesAnalyzed} analyzed files (critical ${counts.critical}, high ${counts.high}, medium ${counts.medium}, low ${counts.low}) using ${mode}. ${verified} finding${verified === 1 ? " has" : "s have"} source-matched evidence; ${hypotheses} ${hypotheses === 1 ? "remains an unverified hypothesis" : "remain unverified hypotheses"}. Review every item before filing.`;
 }
@@ -146,11 +179,68 @@ export async function analyzeRepository(inputUrl: string): Promise<Report> {
   }
 
   const languages = languageBreakdown(languageResult);
+  const dependencyPlan = planDependencyFiles(tree.entries);
+  const dependencyPromise = (async () => {
+    const fetchedDependencies = await fetchDependencyFiles(
+      ref,
+      repo.defaultBranch,
+      dependencyPlan.paths,
+      MAX_DEPENDENCY_FILE_CHARS,
+    );
+    if (fetchedDependencies.skipped > 0) {
+      warnings.push(
+        `${fetchedDependencies.skipped} dependency file${fetchedDependencies.skipped === 1 ? "" : "s"} could not be retrieved or exceeded the size limit.`,
+      );
+    }
+    return analyzeDependencies(fetchedDependencies.files, {
+      sourceFiles: files,
+      fullCoverage:
+        selection.eligible <= selection.selected.length && files.length === selection.selected.length,
+      eligibleFiles: selection.eligible,
+      analyzedFiles: files.length,
+    });
+  })();
+  const aiPromise = reviewRepositoryWithAI(repo, files, languages);
+
   const staticFindings = analyzeStaticFiles(files);
-  const ai = await reviewRepositoryWithAI(repo, files, languages);
+  const knownPaths = tree.truncated
+    ? undefined
+    : new Set(tree.entries.filter((entry) => entry.type === "blob").map((entry) => entry.path));
+  const ast = analyzeAstFiles(files, { knownPaths });
+  if (ast.warning) warnings.push(ast.warning);
+
+  const fullCoverage =
+    selection.eligible <= selection.selected.length && files.length === selection.selected.length;
+  const quality = analyzeCodeQuality(files, ast.structures, {
+    timeBudgetMs: 1_500,
+  });
+  if (quality.warning) warnings.push(quality.warning);
+
+  const architecture = analyzeArchitecture({
+    files,
+    treeEntries: tree.entries,
+    treeTruncated: tree.truncated,
+    imports: ast.imports,
+    analyzedPaths: ast.structures.map((structure) => structure.path),
+    knownPaths: knownPaths ?? new Set(ast.structures.map((structure) => structure.path)),
+    fullCoverage,
+    timeBudgetMs: 1_000,
+  });
+  if (architecture.warning) warnings.push(architecture.warning);
+
+  const [dependency, ai] = await Promise.all([dependencyPromise, aiPromise]);
+  warnings.push(...dependencyPlan.warnings);
+  warnings.push(...dependency.warnings);
   if (ai.warning) warnings.push(ai.warning);
 
-  const findings = dedupeFindings([...staticFindings, ...ai.findings]);
+  const findings = dedupeFindings([
+    ...staticFindings,
+    ...ast.findings,
+    ...quality.findings,
+    ...architecture.findings,
+    ...dependency.findings,
+    ...ai.findings,
+  ]);
   const durationMs = Math.max(0, Date.now() - startedAt);
 
   const report: Report = {
@@ -193,7 +283,7 @@ export async function analyzeRepository(inputUrl: string): Promise<Report> {
       durationMs,
     },
     warnings,
-    summary: makeSummary(findings, files.length, ai.enabled),
+    summary: makeSummary(findings, files.length, ai.enabled, dependencyPlan.paths.length > 0),
     findings,
   };
 

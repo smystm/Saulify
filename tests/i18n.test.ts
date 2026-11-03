@@ -42,6 +42,10 @@ test("English and Persian dictionaries have the same typed shape", () => {
 test("Persian dictionary contains translated report and error copy", () => {
   assert.match(fa.report.reviewSummary, /[\u0600-\u06FF]/);
   assert.match(fa.report.submit.title, /[\u0600-\u06FF]/);
+  assert.match(fa.report.categories.architecture, /[\u0600-\u06FF]/);
+  assert.match(fa.report.source.quality, /[\u0600-\u06FF]/);
+  assert.match(fa.report.assessment.measured, /[\u0600-\u06FF]/);
+  assert.match(fa.report.finding.relatedLocations, /[\u0600-\u06FF]/);
   assert.match(fa.home.errors.invalidUrl, /[\u0600-\u06FF]/);
   assert.match(fa.home.apiErrors.repo_not_found, /[\u0600-\u06FF]/);
   assert.match(fa.features.title, /[\u0600-\u06FF]/);

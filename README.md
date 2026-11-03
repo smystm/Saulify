@@ -9,8 +9,12 @@ Saulify is an open-source, read-only GitHub repository analyzer. Paste a public 
 - Validates public GitHub repository URLs and rejects arbitrary hosts, paths, credentials, and ports.
 - Reads repository metadata, the default branch, languages, and a capped selection of source files through the GitHub REST API.
 - Runs deterministic static rules over JS/TS and Python, plus cross-language credential and private-key checks. Selected YAML/config files are scanned for those credential patterns as well.
+- Runs AST structural analysis over supported JS/TS and Python files for unreachable code, unused imports and locals, risky sinks, and unresolved relative imports.
+- Measures code-quality signals such as cyclomatic complexity, nesting depth, function/file size, parameter count, boolean-condition size, and exact or renamed duplicate blocks.
+- Analyzes architecture signals over the selected module graph: circular dependencies, coupling hubs, dependency concentration, inferred layer direction, root/deep-path structure, and mixed ES module/CommonJS usage.
+- Separates **measured** signals from **advisory** recommendations, and warns when architecture analysis covers only a sample of the repository.
 - Optionally asks an AI provider for additional findings. The response must pass strict Zod validation, unknown file paths are dropped, line ranges are clamped, and quoted evidence is checked against fetched source.
-- Deduplicates findings and labels each one as a **static rule** or **AI reviewed**, and as **evidence matched** or **unverified hypothesis**.
+- Deduplicates findings and labels each one as a **static rule**, **AST analyzed**, **quality and architecture**, **dependency check**, or **AI reviewed**, and as **evidence matched** or **unverified hypothesis**.
 - Provides severity filters, confidence, file/line references, evidence, remediation direction, a GitHub issue title/body, copy buttons, a direct link to the repository's Issues page, and manual submission steps.
 
 Reports are stored in the browser session (`sessionStorage`) by design. No database or account is required.
@@ -139,10 +143,12 @@ Notes for production:
 ## Known limitations
 
 - Static analysis is a curated set of pattern rules, not full data-flow analysis or the repository's own ESLint configuration. It can miss issues and can produce false positives.
+- Code-quality thresholds are heuristics. A measured signal is deterministic, but whether it deserves a change depends on the module's role and the maintainers' standards.
+- Architecture analysis uses the selected source sample. Layer and structure findings are advisory, and cycle or coupling results can omit modules outside the sample.
 - Only a ranked subset of compatible source files is inspected (maximum 20).
 - AI findings are hypotheses. "Evidence matched" means the quoted snippet exists in the fetched source — not that the issue is exploitable.
 - Private repositories, monorepos above the size cap, binary files, generated/vendored code, and unsupported languages are not analyzed.
-- No repository code, tests, dependency graph, runtime behavior, or git history is evaluated.
+- Repository tests are not executed, and runtime behavior and git history are not evaluated.
 - GitHub issue drafts are suggestions and must be reviewed and submitted manually.
 
 ## Non-goals for this MVP
